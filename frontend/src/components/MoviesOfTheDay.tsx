@@ -68,7 +68,7 @@ export default function MoviesOfTheDay(props: Readonly<MoviesOfTheDayProps>) {
 
     return (
         <MoviesContainer>
-            <h1>Movies of the Day</h1>
+            <h2>Movies of the Day</h2>
             {selectedMovie ? (
                 <MovieDetail user={user} movie={selectedMovie} onBack={() => setSelectedMovie(null)} />
             ) : (
@@ -81,7 +81,7 @@ export default function MoviesOfTheDay(props: Readonly<MoviesOfTheDayProps>) {
                         tabIndex={0}
                     >
                         <img src={movie.imgImdb} alt={movie.title} />
-                        <h2>{movie.title} ({movie.year})</h2>
+                        <h3>{movie.title} ({movie.year})</h3>
                     </MovieItem>
                 ))
             )}

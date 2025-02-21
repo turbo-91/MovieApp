@@ -111,7 +111,7 @@ export default function Header({ user, setUser }: HeaderProps) {
                 <button onClick={user && user !== "Unauthorized" ? logout : login}>
                     {user && user !== "Unauthorized" ? "Logout" : "Login"}
                 </button>
-                <p>{user}</p>
+                {/*<p>{user}</p>*/}
                 {user && user !== "Unauthorized" && (
                     <>
                         <MenuButton onClick={() => setMenu((prev) => !prev)}>Menu</MenuButton>
