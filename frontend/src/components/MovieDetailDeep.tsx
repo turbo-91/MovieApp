@@ -76,6 +76,9 @@ export default function MovieDetail(props: Readonly<MovieDetailProps>) {
             </h2>
             <img src={movie.imgImdb} alt={`${movie.title} poster`} style={{ maxWidth: "300px" }} />
             <p>{movie.overview}</p>
+            <p>Starring: {movie.stars}</p>
+            <p>Directed by: {movie.regisseur}</p>
+
 
             {/* ✅ Show Watchlist Button ONLY when user is logged in */}
             {user && user !== "Unauthorized" && (
