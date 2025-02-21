@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import MovieDetail from "./MovieDetail.tsx";
+import MovieDetailDeep from "./MovieDetailDeep.tsx";
 import { IMovie } from "../types/Movie.ts";
 
 interface WatchlistProps {
@@ -62,7 +63,7 @@ export default function Watchlist({ user }: WatchlistProps) {
             {movies.length === 0 ? (
                 <p>Your watchlist is empty.</p>
             ) : selectedMovie ? (
-                <MovieDetail
+                <MovieDetailDeep
                     user={user}
                     movie={selectedMovie}
                     onBack={() => {
@@ -88,17 +89,11 @@ export default function Watchlist({ user }: WatchlistProps) {
                             className="movie-item"
                             style={{
                                 cursor: "pointer",
-                                border: "1px solid #ccc",
-                                borderRadius: "8px",
                                 padding: "8px",
-                                margin: "8px 0",
                             }}
                         >
-                            <h2>{movie.title}</h2>
-                            <p>{movie.year}</p>
-                            <h3>{movie.regisseur}</h3>
-                            <p>{movie.stars}</p>
-                            <img src={movie.imgImdb} alt={movie.title} width="200" />
+                            <h3>{movie.title}</h3>
+                            <img src={movie.imgImdb} alt={movie.title} width="500" />
                         </div>
                     ))}
                 </div>

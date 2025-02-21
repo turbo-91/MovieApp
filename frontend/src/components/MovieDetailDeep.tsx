@@ -2,13 +2,13 @@ import { IMovie } from "../types/Movie.ts";
 import axios from "axios";
 import { useState, useEffect } from "react";
 
-interface MovieDetailProps {
+interface MovieDetailDeepProps {
     user: string | undefined; // GitHub ID of the user
     movie: IMovie;
     onBack: () => void; // Function to go back
 }
 
-export default function MovieDetail(props: Readonly<MovieDetailProps>) {
+export default function MovieDetailDeep(props: Readonly<MovieDetailDeepProps>) {
     const { movie, user, onBack } = props;
     const [message, setMessage] = useState("");
     const [isInWatchlist, setIsInWatchlist] = useState<boolean | null>(null);
