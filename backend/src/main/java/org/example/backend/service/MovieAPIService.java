@@ -315,24 +315,33 @@ public class MovieAPIService {
     }
 
     public List<Movie> fetchMoviesBySearchQuery(String searchQuery) {
+        validateSearchQuery(searchQuery);
 
-        // Validate input: Ensure search query is not null or empty
-        if (searchQuery == null || searchQuery.trim().isEmpty()) {
-            throw new InvalidSearchQueryException("Search query cannot be null or empty.");
-        }
-        String sanitizedQuery = searchQuery.toLowerCase();  // Convert to lowercase
-        SearchQueryValidator.validate(sanitizedQuery);
-        System.out.println("Fetching movies using search query: " + sanitizedQuery);
-
-        // Check if movies for this query already exist in the database
-        List<Movie> existingMovies = movieRepository.findByQueriesContaining(searchQuery).orElse(List.of());
-        if (!existingMovies.isEmpty()) {
-            System.out.println("Returning " + existingMovies.size() + " existing movies for query: " + searchQuery);
-            return existingMovies.stream().toList();
+        // 1a) check cache
+        List<Movie> existing = movieRepository.findByQueriesContaining(searchQuery)
+                .orElse(List.of());
+        if (!existing.isEmpty()) {
+            return existing;
         }
 
-        // Fetch new movies with an empty dateFetched list
-        return fetchAndStoreMovies(searchQuery, List.of()); // ✅ Pass an empty list instead of today’s date
+        // 1b) full fetch (no limit)
+        return fetchAndStoreAllMovies(searchQuery);
+    }
+
+    private List<Movie> fetchAndStoreAllMovies(String query) {
+        String url = buildNetzkinoUrl(query);
+        ResponseEntity<NetzkinoResponse> resp = restTemplate.getForEntity(url, NetzkinoResponse.class);
+
+        List<Movie> all = Optional.ofNullable(resp.getBody())
+                .map(NetzkinoResponse::posts)
+                .orElse(Collections.emptyList()).stream()
+                .map(post -> processMoviePost(post, query, List.of()))   // no dateFetched
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        movieRepository.saveAll(all);
+        queryRepository.save(new Query(query));
+        return all;
     }
 
     public List<Movie> getMoviesOfTheDay(List<String> names) {
@@ -357,20 +366,20 @@ public class MovieAPIService {
 
         // heutige movies nicht in Datenbank? -> fetchAndStoreMovies
 
-        String query = names.get(secureRandom.nextInt(names.size()));
-        System.out.println("Selected query for fetching movies: " + query);
+        String queryForToday = names.get(secureRandom.nextInt(names.size()));
+        System.out.println("Selected query for fetching movies: " + queryForToday);
 
-        if (queryRepository.findAll().stream().anyMatch(q -> q.query().contains(query))) {
-            System.out.println("Query " + query + " has already been used. Fetching from database.");
-            return movieRepository.findByQueriesContaining(query)
+        if (queryRepository.findAll().stream().anyMatch(q -> q.query().contains(queryForToday))) {
+            System.out.println("Query " + queryForToday + " has already been used. Fetching from database.");
+            return movieRepository.findByQueriesContaining(queryForToday)
                     .orElse(List.of()).stream().limit(5).toList();
         }
 
         System.out.println("Query not used before, fetching new movies...");
-        return fetchAndStoreMovies(query, List.of(today));
+        return fetchAndStoreMoviesForDay(queryForToday, List.of(today));
     }
 
-    public List<Movie> fetchAndStoreMovies(String query, List<LocalDate> dateFetched) {
+    public List<Movie> fetchAndStoreMoviesForDay(String query, List<LocalDate> dateFetched) {
         System.out.println("Fetching movies from external API using query: " + query);
 
         List<Movie> collectedMovies = new ArrayList<>();
@@ -419,6 +428,14 @@ public class MovieAPIService {
 
     private String getRandomQuery() {
         return predefinedNames.get(secureRandom.nextInt(predefinedNames.size()));
+    }
+
+    private void validateSearchQuery(String searchQuery) {
+        if (searchQuery == null || searchQuery.trim().isEmpty()) {
+            throw new InvalidSearchQueryException("Search query cannot be null or empty.");
+        }
+        String sanitized = searchQuery.toLowerCase();
+        SearchQueryValidator.validate(sanitized);
     }
 
     private Movie processMoviePost(Post post, String query, List<LocalDate> dateFetched) {
