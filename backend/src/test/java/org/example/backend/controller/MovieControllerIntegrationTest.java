@@ -335,78 +335,84 @@ class MovieControllerIntegrationTest {
     @DirtiesContext
     @Test
     void getDailyMovies_shouldReturnMoviesList_whenMoviesExist() throws Exception {
-        // Arrange: Save test movies
-        Movie movie1 = new Movie(
-                "1",
-                12345,
+        // Arrange: Save two movies fetched today
+        LocalDate today = LocalDate.now();
+        Movie daily1 = new Movie(
+                "daily-1",
+                11111,
                 "daily-movie-1",
-                "Daily Movie 1",
-                "2024",
-                "Description 1",
-                "Director 1",
-                "Stars 1",
-                "img1-netzkino",
-                "img1-netzkino-small",
-                "img1-imdb",
-                List.of("query1"),
-                List.of(LocalDate.now())
-        );
-        Movie movie2 = new Movie(
-                "2",
-                67890,
-                "daily-movie-2",
-                "Daily Movie 2",
+                "Daily Movie One",
                 "2025",
-                "Description 2",
-                "Director 2",
-                "Stars 2",
-                "img2-netzkino",
-                "img2-netzkino-small",
-                "img2-imdb",
-                List.of("query2"),
-                List.of(LocalDate.now())
+                "First daily test movie",
+                "Director A",
+                "Star A",
+                "img-daily1-netzkino",
+                "img-daily1-netzkino-small",
+                "img-daily1-imdb",
+                List.of("daily"),
+                List.of(today)
         );
-        movieRepo.save(movie1);
-        movieRepo.save(movie2);
+        Movie daily2 = new Movie(
+                "daily-2",
+                22222,
+                "daily-movie-2",
+                "Daily Movie Two",
+                "2024",
+                "Second daily test movie",
+                "Director B",
+                "Star B",
+                "img-daily2-netzkino",
+                "img-daily2-netzkino-small",
+                "img-daily2-imdb",
+                List.of("daily"),
+                List.of(today)
+        );
+        movieRepo.save(daily1);
+        movieRepo.save(daily2);
 
-        // Act & Assert: Expect a JSON array with two movies
+        // Act & Assert: call the daily endpoint
         mvc.perform(MockMvcRequestBuilders.get("/api/movies/daily"))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().json("""
-            [
-                {
-                    "id": "1",
-                    "netzkinoId": 12345,
-                    "slug": "daily-movie-1",
-                    "title": "Daily Movie 1",
-                    "year": "2024",
-                    "overview": "Description 1",
-                    "regisseur": "Director 1",
-                    "stars": "Stars 1",
-                    "imgNetzkino": "img1-netzkino",
-                    "imgNetzkinoSmall": "img1-netzkino-small",
-                    "imgImdb": "img1-imdb",
-                    "queries": ["query1"],
-                    "dateFetched": ["%s"]
-                },
-                {
-                    "id": "2",
-                    "netzkinoId": 67890,
-                    "slug": "daily-movie-2",
-                    "title": "Daily Movie 2",
-                    "year": "2025",
-                    "overview": "Description 2",
-                    "regisseur": "Director 2",
-                    "stars": "Stars 2",
-                    "imgNetzkino": "img2-netzkino",
-                    "imgNetzkinoSmall": "img2-netzkino-small",
-                    "imgImdb": "img2-imdb",
-                    "queries": ["query2"],
-                    "dateFetched": ["%s"]
-                }
-            ]
-        """.formatted(LocalDate.now(), LocalDate.now())));
+                    [
+                      {
+                        "id": "daily-1",
+                        "netzkinoId": 11111,
+                        "slug": "daily-movie-1",
+                        "title": "Daily Movie One",
+                        "year": "2025",
+                        "overview": "First daily test movie",
+                        "regisseur": "Director A",
+                        "stars": "Star A",
+                        "imgNetzkino": "img-daily1-netzkino",
+                        "imgNetzkinoSmall": "img-daily1-netzkino-small",
+                        "imgImdb": "img-daily1-imdb",
+                        "queries": ["daily"],
+                        "dateFetched": ["%s"]
+                      },
+                      {
+                        "id": "daily-2",
+                        "netzkinoId": 22222,
+                        "slug": "daily-movie-2",
+                        "title": "Daily Movie Two",
+                        "year": "2024",
+                        "overview": "Second daily test movie",
+                        "regisseur": "Director B",
+                        "stars": "Star B",
+                        "imgNetzkino": "img-daily2-netzkino",
+                        "imgNetzkinoSmall": "img-daily2-netzkino-small",
+                        "imgImdb": "img-daily2-imdb",
+                        "queries": ["daily"],
+                        "dateFetched": ["%s"]
+                      }
+                    ]
+                    """.formatted(today, today)));
+
+        // Verify: ensure they really are in the repo
+        assertTrue(movieRepo.existsBySlug("daily-movie-1"));
+        assertTrue(movieRepo.existsBySlug("daily-movie-2"));
     }
+
 
     @DirtiesContext
     @Test

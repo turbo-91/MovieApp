@@ -11,6 +11,7 @@ import org.example.backend.model.Query;
 import org.example.backend.repo.MovieRepo;
 import org.example.backend.repo.QueryRepo;
 import org.example.backend.validation.SearchQueryValidator;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -19,10 +20,11 @@ import org.springframework.web.client.RestTemplate;
 import java.security.SecureRandom;
 import java.util.*;
 import java.time.LocalDate;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
-public class MovieAPIService {
+public class MovieAPIService implements InitializingBean {
 
     private final MovieRepo movieRepository;
     private final RestTemplate restTemplate;
@@ -33,6 +35,9 @@ public class MovieAPIService {
     private static final String TMDB_BASE_URL = "https://api.themoviedb.org/3/find/";
     private static final String TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/original";
     private static final String NETZKINO_URL = "https://api.netzkino.de.simplecache.net/capi-2.0a/search";
+
+    private final Map<String, List<Movie>> searchCache = new ConcurrentHashMap<>();
+    private final Map<LocalDate, List<Movie>> dailyCache = new ConcurrentHashMap<>();
 
 
     // comment: I plan to transfer predefinedNames into specific endpoint later in time
@@ -314,63 +319,101 @@ public class MovieAPIService {
         this.netzkinoEnv = netzkinoEnv;
     }
 
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        // Preload all query-based movies into searchCache
+        queryRepository.findAll().forEach(q -> {
+            movieRepository.findByQueriesContaining(q.query())
+                    .ifPresent(list -> searchCache.put(q.query(), list));
+        });
+        LocalDate today = LocalDate.now();
+        movieRepository
+                .findByDateFetchedContaining(today)
+                .filter(list -> !list.isEmpty())
+                .ifPresent(list -> dailyCache.put(today, list));
+    }
+
+
     public List<Movie> fetchMoviesBySearchQuery(String searchQuery) {
-
-        // Validate input: Ensure search query is not null or empty
-        if (searchQuery == null || searchQuery.trim().isEmpty()) {
-            throw new InvalidSearchQueryException("Search query cannot be null or empty.");
+        validateSearchQuery(searchQuery);
+        // 1) quick in-memory lookup
+        if (searchCache.containsKey(searchQuery)) {
+            return searchCache.get(searchQuery);
         }
-        String sanitizedQuery = searchQuery.toLowerCase();  // Convert to lowercase
-        SearchQueryValidator.validate(sanitizedQuery);
-        System.out.println("Fetching movies using search query: " + sanitizedQuery);
-
-        // Check if movies for this query already exist in the database
-        List<Movie> existingMovies = movieRepository.findByQueriesContaining(searchQuery).orElse(List.of());
-        if (!existingMovies.isEmpty()) {
-            System.out.println("Returning " + existingMovies.size() + " existing movies for query: " + searchQuery);
-            return existingMovies.stream().toList();
+        // 2) fallback to hitting DB (in case cache missed) or API
+        List<Movie> existing = movieRepository.findByQueriesContaining(searchQuery)
+                .orElse(List.of());
+        if (!existing.isEmpty()) {
+            searchCache.put(searchQuery, existing);
+            return existing;
         }
+        List<Movie> all = fetchAndStoreAllMovies(searchQuery);
+        searchCache.put(searchQuery, all);
+        return all;
+    }
 
-        // Fetch new movies with an empty dateFetched list
-        return fetchAndStoreMovies(searchQuery, List.of()); // ✅ Pass an empty list instead of today’s date
+    private List<Movie> fetchAndStoreAllMovies(String query) {
+        String url = buildNetzkinoUrl(query);
+        ResponseEntity<NetzkinoResponse> resp = restTemplate.getForEntity(url, NetzkinoResponse.class);
+
+        List<Movie> all = Optional.ofNullable(resp.getBody())
+                .map(NetzkinoResponse::posts)
+                .orElse(Collections.emptyList()).stream()
+                .map(post -> processMoviePost(post, query, List.of()))   // no dateFetched
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        movieRepository.saveAll(all);
+        queryRepository.save(new Query(query));
+        return all;
     }
 
     public List<Movie> getMoviesOfTheDay(List<String> names) {
-        System.out.println("Fetching daily movies...");
-
-        // Check: welcher Tag ist heute?
-
-        names = Optional.ofNullable(names).filter(list -> !list.isEmpty()).orElse(predefinedNames);
         LocalDate today = LocalDate.now();
 
-        // Check: heutige movies bereits in Datenbank -> return
+        // 0) Return movies for any previously used query in 'names'
+        if (names != null && !names.isEmpty()) {
+            List<Query> usedQueries = queryRepository.findAll();
+            for (String q : names) {
+                boolean wasUsed = usedQueries.stream()
+                        .anyMatch(existing -> existing.query().equals(q));
+                if (wasUsed) {
+                    // Fetch and return all movies matching this query
+                    return movieRepository.findByQueriesContaining(q)
+                            .orElse(Collections.emptyList());
+                }
+            }
+        }
 
-        System.out.println("Today's date: " + today);
-        System.out.println("Checking if movies are already stored for today...");
+        // 1) In-memory cache
+        if (dailyCache.containsKey(today)) {
+            return dailyCache.get(today)
+                    .stream()
+                    .limit(5)
+                    .collect(Collectors.toList());
+        }
 
-        List<Movie> existingMovies = movieRepository.findByDateFetchedContaining(today).orElse(List.of());
-
+        // 2) Database fallback
+        List<Movie> existingMovies = movieRepository.findByDateFetchedContaining(today)
+                .orElse(Collections.emptyList());
         if (!existingMovies.isEmpty()) {
-            System.out.println("Found " + existingMovies.size() + " existing movies for today, returning them.");
-            return existingMovies.stream().limit(5).toList(); // Changed here
+            List<Movie> limited = existingMovies.stream()
+                    .limit(5)
+                    .collect(Collectors.toList());
+            dailyCache.put(today, limited);
+            return limited;
         }
 
-        // heutige movies nicht in Datenbank? -> fetchAndStoreMovies
+        // 3) Fetch new movies
+        List<String> source = (names != null && !names.isEmpty()) ? names : predefinedNames;
+        String queryForToday = source.get(secureRandom.nextInt(source.size()));
 
-        String query = names.get(secureRandom.nextInt(names.size()));
-        System.out.println("Selected query for fetching movies: " + query);
-
-        if (queryRepository.findAll().stream().anyMatch(q -> q.query().contains(query))) {
-            System.out.println("Query " + query + " has already been used. Fetching from database.");
-            return movieRepository.findByQueriesContaining(query)
-                    .orElse(List.of()).stream().limit(5).toList();
-        }
-
-        System.out.println("Query not used before, fetching new movies...");
-        return fetchAndStoreMovies(query, List.of(today));
+        List<Movie> fetched = fetchAndStoreMoviesForDay(queryForToday, List.of(today));
+        dailyCache.put(today, fetched);
+        return fetched;
     }
 
-    public List<Movie> fetchAndStoreMovies(String query, List<LocalDate> dateFetched) {
+    public List<Movie> fetchAndStoreMoviesForDay(String query, List<LocalDate> dateFetched) {
         System.out.println("Fetching movies from external API using query: " + query);
 
         List<Movie> collectedMovies = new ArrayList<>();
@@ -419,6 +462,14 @@ public class MovieAPIService {
 
     private String getRandomQuery() {
         return predefinedNames.get(secureRandom.nextInt(predefinedNames.size()));
+    }
+
+    private void validateSearchQuery(String searchQuery) {
+        if (searchQuery == null || searchQuery.trim().isEmpty()) {
+            throw new InvalidSearchQueryException("Search query cannot be null or empty.");
+        }
+        String sanitized = searchQuery.toLowerCase();
+        SearchQueryValidator.validate(sanitized);
     }
 
     private Movie processMoviePost(Post post, String query, List<LocalDate> dateFetched) {

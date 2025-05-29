@@ -1,5 +1,4 @@
 import { IMovie } from "../types/Movie.ts";
-import axios from "axios";
 import { useState, useEffect } from "react";
 
 interface MovieDetailDeepProps {
@@ -12,7 +11,6 @@ interface MovieDetailDeepProps {
 
 export default function MovieDetailDeep(props: Readonly<MovieDetailDeepProps>) {
     const { movie, user, onBack, fetchWatchlistStatus, toggleWatchlist } = props;
-    const [message, setMessage] = useState("");
     const [isInWatchlist, setIsInWatchlist] = useState<boolean | null>(null);
 
 
@@ -50,8 +48,6 @@ export default function MovieDetailDeep(props: Readonly<MovieDetailDeepProps>) {
                     {isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
                 </button>
             )}
-
-            {message && <p>{message}</p>}
         </div>
     );
 }
