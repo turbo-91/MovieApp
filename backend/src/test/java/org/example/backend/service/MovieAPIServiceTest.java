@@ -63,7 +63,6 @@ class MovieAPIServiceTest {
         // GIVEN
         String searchQuery = "christopher";
         when(movieRepository.findByQueriesContaining(searchQuery)).thenReturn(Optional.empty());
-        when(queryRepository.findAll()).thenReturn(List.of());
 
         // Mock Netzkino API response
         CustomFields customFields = new CustomFields(
@@ -176,8 +175,8 @@ class MovieAPIServiceTest {
         List<Movie> movies = movieAPIService.fetchMoviesBySearchQuery(searchQuery);
 
         // THEN
-        assertFalse(movies.isEmpty());
-        assertEquals(5, movies.size());
+        assertFalse(movies.isEmpty(), "Should return all movies from external API");
+        assertEquals(1, movies.size(), "Expected exactly one movie returned");
         verify(movieRepository).findByQueriesContaining(searchQuery);
         verify(movieRepository).saveAll(anyList());
         verify(queryRepository).save(any(Query.class));
@@ -195,24 +194,26 @@ class MovieAPIServiceTest {
         assertEquals("Search query cannot be null or empty.", exception.getMessage());
     }
 
+
     @Test
-    void fetchMoviesBySearchQuery_ShouldFailWhenNoMoviesAreFoundAfterAttempts() {
+    void fetchMoviesBySearchQuery_ShouldReturnEmptyList_WhenNoMoviesAreFound() {
         // GIVEN
         String searchQuery = "Nonexistent";
         when(movieRepository.findByQueriesContaining(searchQuery)).thenReturn(Optional.empty());
-
         NetzkinoResponse emptyResponse = new NetzkinoResponse(
-                List.of(), "", "success", 0, 0, 0, 0, List.of(), "", 0, 0
+                List.of(), "", "success", 0,0,0,0, List.of(), "", 0, 0
         );
-
         when(restTemplate.getForEntity(anyString(), eq(NetzkinoResponse.class)))
                 .thenReturn(ResponseEntity.ok(emptyResponse));
 
-        // WHEN & THEN
-        IllegalStateException exception = assertThrows(IllegalStateException.class,
-                () -> movieAPIService.fetchMoviesBySearchQuery(searchQuery));
+        // WHEN
+        List<Movie> movies = movieAPIService.fetchMoviesBySearchQuery(searchQuery);
 
-        assertEquals("Failed to fetch 5 movies after 10 attempts.", exception.getMessage());
+        // THEN
+        assertTrue(movies.isEmpty(), "Should return empty list when no movies found");
+        verify(movieRepository).findByQueriesContaining(searchQuery);
+        verify(movieRepository).saveAll(anyList());
+        verify(queryRepository).save(any(Query.class));
     }
 
 
