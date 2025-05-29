@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import MovieDetail from "./MovieDetail.tsx";
 import MovieDetailDeep from "./MovieDetailDeep.tsx";
 import { IMovie } from "../types/Movie.ts";
 
