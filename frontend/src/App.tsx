@@ -18,18 +18,37 @@ function App() {
     axios.defaults.withCredentials = true;
     console.log("user in App", user)
 
+    const fetchWatchlistStatus = async (user: string, slug: string): Promise<boolean> => {
+        const resp = await axios.get<{ inWatchlist: boolean }>(
+            `/api/users/watchlist/${user}/${slug}`
+        );
+        return resp.data.inWatchlist;
+    };
+
+    const toggleWatchlist = async (user: string | undefined, slug: string, currentlyInWatchlist: boolean) => {
+        if (currentlyInWatchlist) {
+            await axios.delete(`/api/users/watchlist/${user}/${slug}`);
+        } else {
+            await axios.post(`/api/users/watchlist/${user}/${slug}`);
+        }
+    };
+
+
     return (
             <Layout user={user} setUser={setUser}>
                 <main>
                     <Routes>
                         <Route
                             path="/"
-                            element={<MoviesOfTheDay user={user}/>}
+                            element={<MoviesOfTheDay user={user} fetchWatchlistStatus={fetchWatchlistStatus}
+                                                     toggleWatchlist={toggleWatchlist}/>}
 
                         />
                         <Route element={<ProtectedRoute user={user}/>}>
-                            <Route path="/search" element={<SearchQuery user={user} />} />
-                            <Route path="/watchlist" element={<Watchlist user={user} />} />
+                            <Route path="/search" element={<SearchQuery user={user} fetchWatchlistStatus={fetchWatchlistStatus}
+                                                                        toggleWatchlist={toggleWatchlist} />} />
+                            <Route path="/watchlist" element={<Watchlist user={user} fetchWatchlistStatus={fetchWatchlistStatus}
+                                                                         toggleWatchlist={toggleWatchlist} />} />
                         </Route>
                     </Routes>
                 </main>

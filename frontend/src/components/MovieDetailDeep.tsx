@@ -2,7 +2,7 @@ import { IMovie } from "../types/Movie.ts";
 import axios from "axios";
 import { useState, useEffect } from "react";
 
-interface MovieDetailProps {
+interface MovieDetailDeepProps {
     user: string | undefined; // GitHub ID of the user
     movie: IMovie;
     onBack: () => void; // Function to go back
@@ -10,10 +10,11 @@ interface MovieDetailProps {
     toggleWatchlist: (user: string, slug: string, inWL: boolean) => Promise<void>;
 }
 
-export default function MovieDetail(props: Readonly<MovieDetailProps>) {
+export default function MovieDetailDeep(props: Readonly<MovieDetailDeepProps>) {
     const { movie, user, onBack, fetchWatchlistStatus, toggleWatchlist } = props;
     const [message, setMessage] = useState("");
     const [isInWatchlist, setIsInWatchlist] = useState<boolean | null>(null);
+
 
     useEffect(() => {
         if (!user) return;
@@ -28,6 +29,7 @@ export default function MovieDetail(props: Readonly<MovieDetailProps>) {
         setIsInWatchlist(!isInWatchlist);
     };
 
+
     return (
         <div>
             {/* ✅ Back Button */}
@@ -38,6 +40,9 @@ export default function MovieDetail(props: Readonly<MovieDetailProps>) {
             </h2>
             <img src={movie.imgImdb} alt={`${movie.title} poster`} style={{ maxWidth: "300px" }} />
             <p>{movie.overview}</p>
+            <p>Starring: {movie.stars}</p>
+            <p>Directed by: {movie.regisseur}</p>
+
 
             {/* ✅ Show Watchlist Button ONLY when user is logged in */}
             {user && user !== "Unauthorized" && (
