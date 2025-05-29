@@ -5,6 +5,8 @@ import styled from "styled-components";
 
 interface SearchQueryProps {
     user: string | undefined;
+    fetchWatchlistStatus: (user: string, slug: string) => Promise<boolean>;
+    toggleWatchlist: (user: string, slug: string, inWL: boolean) => Promise<void>;
 }
 
 // Styled Components
@@ -70,7 +72,8 @@ const MovieItem = styled.div`
     }
 `;
 
-export default function SearchQuery({ user }: SearchQueryProps) {
+export default function SearchQuery(props: Readonly<SearchQueryProps>) {
+    const { user, toggleWatchlist, fetchWatchlistStatus } = props;
     const [query, setQuery] = useState("");
     const [movies, setMovies] = useState<IMovie[]>([]);
     const [error, setError] = useState("");
@@ -135,7 +138,8 @@ export default function SearchQuery({ user }: SearchQueryProps) {
             {movies.length === 0 ? (
                 <p>No movies found.</p>
             ) : selectedMovie ? (
-                <MovieDetail user={user} movie={selectedMovie} onBack={() => setSelectedMovie(null)} />
+                <MovieDetail user={user} movie={selectedMovie} onBack={() => setSelectedMovie(null)} fetchWatchlistStatus={fetchWatchlistStatus}
+                             toggleWatchlist={toggleWatchlist}/>
             ) : (
                 <MoviesGrid>
                     {movies.map((movie) => (

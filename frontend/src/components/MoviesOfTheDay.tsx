@@ -7,6 +7,8 @@ import styled from "styled-components";
 
 interface MoviesOfTheDayProps {
     user: string | undefined;
+    fetchWatchlistStatus: (user: string, slug: string) => Promise<boolean>;
+    toggleWatchlist: (user: string, slug: string, inWL: boolean) => Promise<void>;
 }
 
 // Styled Components
@@ -48,7 +50,7 @@ const MovieItem = styled.div`
 `;
 
 export default function MoviesOfTheDay(props: Readonly<MoviesOfTheDayProps>) {
-    const { user } = props;
+    const { user, toggleWatchlist, fetchWatchlistStatus } = props;
     const [movies, setMovies] = useState<IMovie[]>([]);
     const { data, error } = useSWR("api/movies/daily", fetcher, {
         shouldRetryOnError: false,
@@ -70,7 +72,8 @@ export default function MoviesOfTheDay(props: Readonly<MoviesOfTheDayProps>) {
         <MoviesContainer>
             <h2>Movies of the Day</h2>
             {selectedMovie ? (
-                <MovieDetail user={user} movie={selectedMovie} onBack={() => setSelectedMovie(null)} />
+                <MovieDetail user={user} movie={selectedMovie} onBack={() => setSelectedMovie(null)} fetchWatchlistStatus={fetchWatchlistStatus}
+                             toggleWatchlist={toggleWatchlist} />
             ) : (
                 data.map((movie: IMovie) => (
                     <MovieItem
