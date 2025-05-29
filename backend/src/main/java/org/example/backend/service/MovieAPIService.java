@@ -326,9 +326,10 @@ public class MovieAPIService implements InitializingBean {
             movieRepository.findByQueriesContaining(q.query())
                     .ifPresent(list -> searchCache.put(q.query(), list));
         });
-        // Preload today's movies into dailyCache
         LocalDate today = LocalDate.now();
-        movieRepository.findByDateFetchedContaining(today)
+        movieRepository
+                .findByDateFetchedContaining(today)
+                .filter(list -> !list.isEmpty())
                 .ifPresent(list -> dailyCache.put(today, list));
     }
 
