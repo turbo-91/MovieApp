@@ -139,3 +139,13 @@ Remove movie from watchlist
 ```
 DELETE /api/users/watchlist/{githubId}/{movieSlug}
 ```
+
+# Testing
+### Run all tests:
+```
+mvn test
+```
+### Run a single test class:
+```
+mvn -Dtest=MovieControllerIntegrationTest test
+```
