@@ -6,7 +6,7 @@
 - Full CRUD support for Movies through RESTful APIs
 - **Rate Limiting** on search endpoints (2 requests per 6 seconds) enforced via Bucket4j
 - **Concurrent Caching** using ConcurrentHashMap for fast, thread-safe storage
-- Global Exception Handling with custom responses and HTTP status codes (400, 404, 429, 500)
+- Global Exception Handling with custom responses
 - Frontend built in React with styled components
 - Frontend communication via Axios to backend APIs
 - unit tests for core services and integration tests for REST endpoints
